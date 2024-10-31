@@ -3,22 +3,28 @@
 import torch
 from torch import nn
 import matplotlib.pyplot as plt
-from noise import linnoise
+from noise import highfrac, highnoise
 
 device = 'cuda' if torch.cuda.is_available() else 'mps'
-
-n = 1000
-
-F = [0.5, 0.2, 0.1]
-x = torch.linspace(0,1,1000).unsqueeze(1).to(device)
-y = sum([linnoise(n//2, int(f*100)) * f for f in F]).unsqueeze(1).to(device) * 0.1
-y += x[:n//2]
-y = torch.concat([y, y[torch.arange((n//2)-1, -1, -1)]], dim=0)
-
-plt.plot(x.cpu(), y.cpu())
+import numpy as np
 
 #%%
+xdim = 2
+ydim = 4
 
+n_sample = 1000
+resol = int(round(n_sample ** (1/xdim)))
+
+y = torch.stack([highfrac((resol,) * xdim) for _ in range(ydim)]).permute(*range(1, xdim+1), 0)
+x = torch.tensor(np.mgrid.__getitem__([slice(resol) for _ in range(xdim)]))/resol
+x = x.permute([*range(1, x.dim()), 0])
+
+y = y.flatten(0, -3).to(device)
+x = x.flatten(0, -3).to(device)
+
+x.shape, y.shape
+
+#%%
 class Linear(nn.Module):
   def __init__(self, in_features, out_features):
     super().__init__()
@@ -31,25 +37,27 @@ class Linear(nn.Module):
 class MLP(nn.Module):
   def __init__(self, layers):
     super().__init__()
-    self.inp = nn.Linear(1, layers[0])
-    self.layers = nn.ModuleList(nn.Linear(a,b) for a,b in zip(layers[:-1], layers[1:]))
+    # self.inp = nn.Linear(layers[0], layers[1])
+    self.layers = nn.ModuleList(nn.Linear(a,b) for a,b in zip(layers[:-2], layers[1:-1]))
     self.act = nn.ReLU()
-    self.out = nn.Linear(layers[-1], 1)
+    self.out = nn.Linear(layers[-2], layers[-1])
     self.dropout = nn.Dropout(0.3)
 
   def forward(self, x):
-    x = self.inp(x)
+    # x = self.inp(x)
     for layer in self.layers: x = self.dropout(self.act(layer(x)))
     return self.out(x)
 
 #%%
-model = MLP([200, 100, 40])
+model = MLP([xdim, 200, 100, 40, ydim])
 model.to(device)
 opt = torch.optim.Adam(model.parameters(), lr=1e-2)
 
+assert model(x).shape == y.shape
+
 #%%
 
-opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+opt = torch.optim.Adam(model.parameters(), lr=1e-4)
 def step():
   model.train()
   opt.zero_grad()
@@ -64,11 +72,14 @@ for i in range(2000): print(step(), end='\r')
 
 # %%
 p = model.eval()(x)
-plt.plot(x.cpu(), y.cpu())
-plt.plot(x.cpu(), p.detach().cpu())
-
+print(p.shape)
 
 #%%
 
-for p in model.parameters():
-  print(p.requires_grad, p.device)
+k = 0
+fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+axs[0].imshow(y[:, :, k].cpu())
+axs[1].imshow(p[:, :, k].detach().cpu())
+
+plt.show()
