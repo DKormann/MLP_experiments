@@ -24,7 +24,7 @@ class MLP(nn.Module):
 
 
 
-def train(x, y, model, mask=None):
+def train(x, y, model, mask=None, epochs=2000):
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
   model.to(device)
   opt = torch.optim.Adam(model.parameters(), lr=1e-2)
@@ -44,7 +44,7 @@ def train(x, y, model, mask=None):
     return loss.item()
 
   print(step())
-  for _ in range(2000): print(f'{step()=}', end='\r')
+  for _ in range(epochs): print(f'{step()=}', end='\r')
   print()
 
   p = model.eval()(x)
