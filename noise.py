@@ -4,6 +4,7 @@ import torch
 
 #%%
 
+
 def interpol(rand, x):
   step = x.int()
   frac = (x - step).reshape(-1, *((1,) * (len(rand.shape) -1)))
@@ -22,24 +23,7 @@ def highfrac(dim, F=[2, 4, 10, 20]): return sum([highnoise(f, dim) / f for f in 
 # %%
 
 if __name__ == '__main__':
-  # sp = (10,20,30,4)
+  sp = (10,20,30,4)
+  assert highfrac(sp).shape == sp
   sp = (50,50)
-  highfrac(sp).shape == sp
   plt.imshow(highfrac(sp))
-
-
-
-#%%
-
-
-torch.arange(10).tile((10,1)).tile((10,1)).shape
-
-
-
-# %%
-
-import numpy as np
-
-# np.mgrid[:10, :10]
-np.mgrid.__getitem__((slice(10), slice(10)))
-# %%
